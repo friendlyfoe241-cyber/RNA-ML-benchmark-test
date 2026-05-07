@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
 # ================================================================
-# MS BLOOD RNA — PUBLICATION-GRADE MACHINE LEARNING BENCHMARK TOOL
+# MS DIAGNOSTIC BENCHMARK TOOL
 # ================================================================
 # Author: Adam Simson
 # Affiliation: Synthica Research Group
-# Year: 2025
+# Paper: "Evaluating Machine Learning Algorithms for Blood RNA-Based
+#         Multiple Sclerosis Diagnosis: A Systematic Benchmark with
+#         a Novel Weighted Scoring System"
 #
-# Paper-safe title suggestion:
-# "Benchmarking Machine Learning Algorithms for Multiple Sclerosis
-#  Classification from Whole-Blood RNA Expression Profiles"
-#
-# Why this version is stronger than the original:
-# 1. Prevents data leakage by placing feature selection, scaling,
-#    SMOTE, and modelling inside an imblearn Pipeline.
-# 2. Uses nested cross-validation for less biased model comparison.
-# 3. Reports clinically relevant metrics: sensitivity, specificity,
-#    balanced accuracy, PR-AUC, AUC-ROC, Brier score, MCC, and CIs.
-# 4. Keeps the holdout test set completely untouched until final testing.
-# 5. Saves reproducible outputs: CSV results, predictions, plots, and config.
-# 6. Avoids overclaiming: this is classification/research benchmarking,
-#    not a clinically validated diagnostic tool.
+# DESCRIPTION:
+# This tool allows researchers to test their own machine learning
+# models against the benchmark established in the paper above.
+# Simply add your model in the section marked below, run the script,
+# and see how your model compares to the published benchmark.
 # ================================================================
 
 from __future__ import annotations
