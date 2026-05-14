@@ -208,5 +208,5 @@ It is not intended for clinical use, diagnosis, or medical decision-making.
 ## Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ms-blood-rna-ml-benchmark.git
+git clone https://github.com/adamjamiesimson/ms-blood-rna-ml-benchmark.git
 cd ms-blood-rna-ml-benchmark
