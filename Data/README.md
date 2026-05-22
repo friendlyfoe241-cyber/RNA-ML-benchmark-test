@@ -25,9 +25,6 @@ https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE17048
 
 ### Important
 
-The dataset is **not placed** in the right directory for running the benchmark.
+The dataset is **included** in this repository.
 
-To use this project:
-
-1. Download `GSE17048_series_matrix.txt.gz`
-2. Place it in the project root directory
+To use this project, the dataset `GSE17048_series_matrix.txt.gz` must be located/placed it in the project root directory
