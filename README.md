@@ -32,6 +32,37 @@ The framework benchmarks multiple machine learning models under a standardized e
 
 ---
 
+# Installation
+## How to use
+1. Download the files from this repository as-is
+
+2. Open terminal at your local copy of the repository folder
+
+3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+4. Run the benchmark
+```bash
+python ms_ml_benchmark.py
+```
+
+## Results
+
+results will be automatically saved inside the root directory as a new folder `results_publication_grade`
+
+## Explanation
+The framework will:
+
+- Load and preprocess the dataset
+- Perform feature selection
+- Train and evaluate machine learning models
+- Generate benchmark metrics
+- Create publication-style visualizations
+- Save outputs into a `results/` directory
+
+---
+
 ## Models Included
 
 The benchmark currently evaluates:
@@ -69,81 +100,9 @@ https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE17048
 
 ### Important
 
-The dataset is **not included** in this repository.
+The dataset is **included** in this repository.
 
-To use this project:
-
-1. Download `GSE17048_series_matrix.txt.gz`
-2. Place it in the project root directory
-
----
-
-# Installation
-## Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-# Usage
-
-Run the benchmark pipeline:
-
-```bash
-python ms_ml_benchmark.py
-```
-
-The framework will:
-
-- Load and preprocess the dataset
-- Perform feature selection
-- Train and evaluate machine learning models
-- Generate benchmark metrics
-- Create publication-style visualizations
-- Save outputs into the `results/` directory
-
----
-
-# Dataset
-
-This project uses the publicly available GEO dataset:
-
-**GSE17048 — Whole Blood RNA Expression Profiles**
-
-Download:
-https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE17048
-
-After downloading:
-
-1. Extract nothing
-2. Keep the file compressed
-3. Place:
-
-```txt
-GSE17048_series_matrix.txt.gz
-```
-
-in the same folder as:
-
-```txt
-ms_ml_benchmark.py
-```
-
----
-
-# Models Included
-
-- Logistic Regression
-- Random Forest
-- XGBoost
-- Support Vector Machine (SVM)
-- Neural Network (MLP)
-- Gradient Boosting
-- Naive Bayes
-- K-Nearest Neighbors (KNN)
-- Stacking Ensemble
+To use this project, the dataset `GSE17048_series_matrix.txt.gz` must be located/placed it in the project root directory
 
 ---
 
@@ -194,7 +153,7 @@ ms-blood-rna-ml-benchmark/
 
 # Author
 
-**Adam Simson**  
+**Adam Simson** & **Ankush Dutta**
 Synthica Research Group
 
 ---
