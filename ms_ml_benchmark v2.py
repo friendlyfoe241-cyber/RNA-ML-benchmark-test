@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore')
+
 import pandas as pd
 import numpy as np
 import gzip
@@ -24,11 +27,11 @@ from sklearn.decomposition import PCA
 from imblearn.over_sampling import SMOTE
 from xgboost import XGBClassifier
 import umap
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.patches import Patch
-import warnings
-warnings.filterwarnings('ignore')
 
 
 print("="*60)
