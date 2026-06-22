@@ -24,6 +24,7 @@ os.environ["LOKY_MAX_CPU_COUNT"] = "4"
 # Suppress ALL warnings at the earliest possible moment
 import warnings as _warnings
 _warnings.filterwarnings("ignore")
+_warnings.filterwarnings("ignore", category=RuntimeWarning)
 _warnings.simplefilter("ignore")
 
 import logging
