@@ -17,10 +17,22 @@
 
 from __future__ import annotations
 
+# Suppress joblib/loky resource tracker warnings before any parallel processing
+import os
+os.environ["LOKY_MAX_CPU_COUNT"] = "4"
+
+# Suppress ALL warnings at the earliest possible moment
+import warnings as _warnings
+_warnings.filterwarnings("ignore")
+_warnings.simplefilter("ignore")
+
+import logging
+logging.getLogger("joblib").setLevel(logging.ERROR)
+logging.getLogger("loky").setLevel(logging.ERROR)
+
 import argparse
 import gzip
 import json
-import os
 import platform
 import subprocess
 import sys
@@ -32,6 +44,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -80,6 +94,11 @@ except Exception:
     HAS_XGBOOST = False
 
 warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=UserWarning, module="resource_tracker")
+warnings.filterwarnings("ignore", message=".*resource_tracker.*")
+warnings.filterwarnings("ignore", message=".*leaked.*")
+warnings.filterwarnings("ignore", message=".*joblib_memmapping.*")
+warnings.simplefilter("ignore")
 
 
 # ================================================================
