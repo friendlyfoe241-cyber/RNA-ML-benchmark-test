@@ -89,14 +89,18 @@ print(f"Classes: {Counter(conditions)}")
 
 # ── 2. LOAD ITALIAN DATASET (for cross-dataset validation) ────
 print("\n[2/9] Loading Italian dataset for cross-dataset validation...")
-df_it = pd.read_csv("RRvsHC_-F2-LogTPM_train_lessFeatures_107rep.csv", sep=';')
-df_it_t = df_it.set_index('Condition').T.reset_index()
-df_it_t = df_it_t.rename(columns={'index': 'Patient'})
-for col in df_it_t.columns[1:]:
-    df_it_t[col] = df_it_t[col].astype(str).str.strip().str.replace(',','.').astype(float)
-df_it_t = df_it_t[df_it_t['Patient'].str.startswith(('RR','HC'))]
-df_it_t['Label'] = df_it_t['Patient'].str.startswith('RR').astype(int)
-print(f"Italian dataset: {len(df_it_t)} patients")
+try:
+    df_it = pd.read_csv("RRvsHC_-F2-LogTPM_train_lessFeatures_107rep.csv", sep=';')
+    df_it_t = df_it.set_index('Condition').T.reset_index()
+    df_it_t = df_it_t.rename(columns={'index': 'Patient'})
+    for col in df_it_t.columns[1:]:
+        df_it_t[col] = df_it_t[col].astype(str).str.strip().str.replace(',','.').astype(float)
+    df_it_t = df_it_t[df_it_t['Patient'].str.startswith(('RR','HC'))]
+    df_it_t['Label'] = df_it_t['Patient'].str.startswith('RR').astype(int)
+    print(f"Italian dataset: {len(df_it_t)} patients")
+except FileNotFoundError:
+    print("Italian dataset not found - skipping cross-dataset validation")
+    df_it_t = None
 
 
 # ── 3. FEATURE SELECTION ─────────────────────────────────────
@@ -271,39 +275,42 @@ for name, scores in all_cv_scores.items():
 
 # ── 8. CROSS-DATASET VALIDATION ──────────────────────────────
 print("\n[8/9] Cross-dataset validation...")
-# Find common genes between GEO and Italian datasets
-it_genes = [c for c in df_it_t.columns
-            if c not in ['Patient','Label']]
-common = [g for g in selected_genes if g in it_genes]
-print(f"Common genes between datasets: {len(common)}")
+if df_it_t is not None:
+    # Find common genes between GEO and Italian datasets
+    it_genes = [c for c in df_it_t.columns
+                if c not in ['Patient','Label']]
+    common = [g for g in selected_genes if g in it_genes]
+    print(f"Common genes between datasets: {len(common)}")
 
 
-cross_results = {}
-if len(common) >= 10:
-    X_cross = df_it_t[common].values
-    y_cross = df_it_t['Label'].values
-    X_cross_scaled = scaler.transform(
-        np.hstack([X_cross,
-                   np.zeros((len(X_cross),
-                             len(selected_genes)-len(common)))]))
-    for name in ['Logistic Regression','SVM','Random Forest',
-                 'XGBoost','Neural Network']:
-        try:
-            model = tuned_models[name]
-            preds = model.predict(X_cross_scaled)
-            proba = model.predict_proba(X_cross_scaled)[:,1]
-            cross_results[name] = {
-                'Cross Accuracy': round(
-                    accuracy_score(y_cross, preds)*100, 2),
-                'Cross AUC': round(
-                    roc_auc_score(y_cross, proba), 4),
-            }
-            print(f"  {name}: Acc={cross_results[name]['Cross Accuracy']}% "
-                  f"AUC={cross_results[name]['Cross AUC']}")
-        except Exception as e:
-            print(f"  {name}: failed ({e})")
+    cross_results = {}
+    if len(common) >= 10:
+        X_cross = df_it_t[common].values
+        y_cross = df_it_t['Label'].values
+        X_cross_scaled = scaler.transform(
+            np.hstack([X_cross,
+                       np.zeros((len(X_cross),
+                                 len(selected_genes)-len(common)))]))
+        for name in ['Logistic Regression','SVM','Random Forest',
+                     'XGBoost','Neural Network']:
+            try:
+                model = tuned_models[name]
+                preds = model.predict(X_cross_scaled)
+                proba = model.predict_proba(X_cross_scaled)[:,1]
+                cross_results[name] = {
+                    'Cross Accuracy': round(
+                        accuracy_score(y_cross, preds)*100, 2),
+                    'Cross AUC': round(
+                        roc_auc_score(y_cross, proba), 4),
+                }
+                print(f"  {name}: Acc={cross_results[name]['Cross Accuracy']}% "
+                      f"AUC={cross_results[name]['Cross AUC']}")
+            except Exception as e:
+                print(f"  {name}: failed ({e})")
+    else:
+        print("  Not enough common genes — skipping cross-dataset test")
 else:
-    print("  Not enough common genes — skipping cross-dataset test")
+    print("  Skipped (Italian dataset not available)")
 
 
 # ── 9. GRAPHS ─────────────────────────────────────────────────
