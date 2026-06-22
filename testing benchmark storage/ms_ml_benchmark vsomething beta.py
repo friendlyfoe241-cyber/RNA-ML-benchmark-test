@@ -22,12 +22,9 @@ import gzip
 import json
 import os
 import platform
-import subprocess
 import sys
 import time
-import traceback
 import warnings
-from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
@@ -37,11 +34,6 @@ import numpy as np
 import pandas as pd
 import importlib.util
 import joblib
-try:
-    from tqdm import tqdm
-except ImportError:
-    def tqdm(iterable, *args, **kwargs):
-        return iterable
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
 from scipy import stats
@@ -79,7 +71,10 @@ try:
 except Exception:
     HAS_XGBOOST = False
 
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 # ================================================================
@@ -102,8 +97,6 @@ class Config:
     positive_label_name: str = "MS"
     negative_label_name: str = "HC"
     external_models: Optional[str] = None
-    install_deps: bool = False
-    requirements_file: str = "requirements.txt"
 
 
 CONFIG = Config()
@@ -125,31 +118,6 @@ WEIGHTS = {
     "F1": 0.10,
     "Calibration": 0.10,
 }
-
-
-def install_requirements(requirements_path: Path) -> None:
-    if not requirements_path.exists():
-        raise FileNotFoundError(f"Requirements file not found: {requirements_path}")
-    print("Installing required dependencies from requirements.txt...")
-    command = [sys.executable, "-m", "pip", "install", "-r", str(requirements_path), "--disable-pip-version-check", "-q"]
-    subprocess.check_call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-
-class suppress_output:
-    def __enter__(self):
-        self._stdout = open(os.devnull, "w")
-        self._stderr = open(os.devnull, "w")
-        self._stdout_ctx = redirect_stdout(self._stdout)
-        self._stderr_ctx = redirect_stderr(self._stderr)
-        self._stdout_ctx.__enter__()
-        self._stderr_ctx.__enter__()
-        return self
-
-    def __exit__(self, exc_type, exc, tb):
-        self._stderr_ctx.__exit__(exc_type, exc, tb)
-        self._stdout_ctx.__exit__(exc_type, exc, tb)
-        self._stderr.close()
-        self._stdout.close()
 
 
 # ================================================================
@@ -788,127 +756,153 @@ def save_run_metadata(cfg: Config, outdir: Path) -> None:
 
 def run(cfg: Config) -> None:
     print(CLI_BANNER)
-    if cfg.install_deps:
-        try:
-            install_requirements(Path(cfg.requirements_file))
-        except Exception:
-            print("Automatic dependency installation failed. Please run: python -m pip install -r requirements.txt")
-            return
-
-    print("Preparing benchmark. Please wait...")
-    for _ in tqdm(range(40), desc="Loading", ncols=70, bar_format="{l_bar}{bar}| {elapsed}"):
-        time.sleep(0.03)
-
     np.random.seed(cfg.random_seed)
     outdir = Path(cfg.results_dir)
     outdir.mkdir(parents=True, exist_ok=True)
+    save_run_metadata(cfg, outdir)
 
+    df = load_geo_series_matrix(cfg.data_file)
+    X, y, feature_names = get_xy(df)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X,
+        y,
+        test_size=cfg.test_size,
+        stratify=y,
+        random_state=cfg.random_seed,
+    )
+    print(f"\nHoldout split: train={len(y_train)}, test={len(y_test)}")
+    print("Important: holdout test set is untouched until final model evaluation.\n")
+
+    registry = model_grid_registry(cfg)
+    # Load and integrate external models (if provided)
     try:
-        with suppress_output():
-            save_run_metadata(cfg, outdir)
-            df = load_geo_series_matrix(cfg.data_file)
-            X, y, feature_names = get_xy(df)
-            X_train, X_test, y_train, y_test = train_test_split(
-                X,
-                y,
-                test_size=cfg.test_size,
-                stratify=y,
-                random_state=cfg.random_seed,
-            )
-            registry = model_grid_registry(cfg)
-            ext_to_tune, ext_pretrained = {}, {}
-            if cfg.external_models:
-                try:
-                    ext_to_tune, ext_pretrained = load_external_models(cfg.external_models, cfg)
-                except Exception:
-                    ext_to_tune, ext_pretrained = {}, {}
+        ext_to_tune, ext_pretrained = load_external_models(cfg.external_models, cfg)
+    except Exception as e:
+        print(f"Warning: failed to load external models: {e}")
+        ext_to_tune, ext_pretrained = {}, {}
 
-            if ext_to_tune:
-                for name, (estimator, grid) in ext_to_tune.items():
-                    pipeline = estimator if hasattr(estimator, "named_steps") else make_preprocessing_pipeline(estimator, cfg)
-                    registry[name] = (pipeline, grid or {})
+    if ext_to_tune:
+        for name, (estimator, grid) in ext_to_tune.items():
+            pipeline = estimator if hasattr(estimator, "named_steps") else make_preprocessing_pipeline(estimator, cfg)
+            registry[name] = (pipeline, grid or {})
+        print(f"Added external tunable models: {list(ext_to_tune.keys())}")
 
-            nested_summaries: List[Dict[str, Any]] = []
-            fold_tables: List[pd.DataFrame] = []
-            final_searches: Dict[str, GridSearchCV] = {}
-            holdout_rows: List[Dict[str, Any]] = []
-            holdout_predictions: Dict[str, Dict[str, np.ndarray]] = {}
+    if ext_pretrained:
+        print(f"Found pretrained external models: {list(ext_pretrained.keys())}")
 
-            for name, (pipeline, grid) in registry.items():
-                summary, folds = nested_cv_evaluate_model(name, pipeline, grid, X_train, y_train, cfg)
-                nested_summaries.append(summary)
-                fold_tables.append(folds)
-                search = fit_final_model(name, pipeline, grid, X_train, y_train, cfg)
-                final_searches[name] = search
-                holdout = evaluate_holdout(search, X_test, y_test, cfg)
-                holdout["Model"] = name
-                holdout_rows.append(holdout)
-                y_proba = safe_predict_proba(search.best_estimator_, X_test)
-                holdout_predictions[name] = {
-                    "y_true": y_test.copy(),
-                    "y_proba": y_proba.copy(),
-                    "y_pred": (y_proba >= 0.5).astype(int),
-                }
+    nested_summaries: List[Dict[str, Any]] = []
+    fold_tables: List[pd.DataFrame] = []
+    final_searches: Dict[str, GridSearchCV] = {}
+    holdout_rows: List[Dict[str, Any]] = []
+    holdout_predictions: Dict[str, Dict[str, np.ndarray]] = {}
 
-            if ext_pretrained:
-                for name, est in ext_pretrained.items():
-                    y_proba = safe_predict_proba(est, X_test)
-                    y_pred = (y_proba >= 0.5).astype(int)
-                    metrics = evaluate_predictions(y_test, y_pred, y_proba)
-                    metrics["Model"] = name
-                    metrics["AUC_95CI"] = "not computed"
-                    metrics["Best_Params"] = "pretrained external model (no tuning)"
-                    holdout_rows.append(metrics)
-                    holdout_predictions[name] = {
-                        "y_true": y_test.copy(),
-                        "y_proba": y_proba.copy(),
-                        "y_pred": y_pred.copy(),
-                    }
+    for name, (pipeline, grid) in registry.items():
+        print("=" * 72)
+        print(f"Nested CV evaluating: {name}")
+        summary, folds = nested_cv_evaluate_model(name, pipeline, grid, X_train, y_train, cfg)
+        nested_summaries.append(summary)
+        fold_tables.append(folds)
+        print(
+            f"Nested CV {name}: AUC={summary['AUC_ROC']:.3f}, "
+            f"Sensitivity={summary['Sensitivity']:.3f}, Specificity={summary['Specificity']:.3f}, "
+            f"Score={summary['MS_Research_Score']:.2f}"
+        )
 
-            stack = build_stacking_model(final_searches, cfg)
-            if stack is not None:
-                stack.fit(X_train, y_train)
-                y_proba = safe_predict_proba(stack, X_test)
+        print(f"Fitting final tuned model for holdout: {name}")
+        search = fit_final_model(name, pipeline, grid, X_train, y_train, cfg)
+        final_searches[name] = search
+        holdout = evaluate_holdout(search, X_test, y_test, cfg)
+        holdout["Model"] = name
+        holdout_rows.append(holdout)
+        y_proba = safe_predict_proba(search.best_estimator_, X_test)
+        holdout_predictions[name] = {
+            "y_true": y_test.copy(),
+            "y_proba": y_proba.copy(),
+            "y_pred": (y_proba >= 0.5).astype(int),
+        }
+        print(
+            f"Holdout {name}: AUC={holdout['AUC_ROC']:.3f}, "
+            f"Sensitivity={holdout['Sensitivity']:.3f}, Specificity={holdout['Specificity']:.3f}, "
+            f"Score={holdout['MS_Research_Score']:.2f}\n"
+        )
+
+    # Evaluate pretrained external models (no tuning, models must accept raw features)
+    try:
+        ext_pretrained
+    except NameError:
+        ext_pretrained = {}
+
+    if ext_pretrained:
+        for name, est in ext_pretrained.items():
+            try:
+                print(f"Evaluating pretrained external model: {name}")
+                y_proba = safe_predict_proba(est, X_test)
                 y_pred = (y_proba >= 0.5).astype(int)
                 metrics = evaluate_predictions(y_test, y_pred, y_proba)
-                metrics["Model"] = "Stacking Ensemble"
+                metrics["Model"] = name
                 metrics["AUC_95CI"] = "not computed"
-                metrics["Best_Params"] = "base models already tuned on training set"
+                metrics["Best_Params"] = "pretrained external model (no tuning)"
                 holdout_rows.append(metrics)
-                holdout_predictions["Stacking Ensemble"] = {
-                    "y_true": y_test.copy(),
-                    "y_proba": y_proba.copy(),
-                    "y_pred": y_pred.copy(),
-                }
+                holdout_predictions[name] = {"y_true": y_test.copy(), "y_proba": y_proba.copy(), "y_pred": y_pred.copy()}
+                print(f"  {name}: AUC={metrics['AUC_ROC']:.3f}, Sens={metrics['Sensitivity']:.3f}, Spec={metrics['Specificity']:.3f}")
+            except Exception as e:
+                print(f"  Failed to evaluate pretrained model {name}: {e}")
 
-            nested_df = pd.DataFrame(nested_summaries).sort_values("MS_Research_Score", ascending=False)
-            folds_df = pd.concat(fold_tables, ignore_index=True) if fold_tables else pd.DataFrame()
-            holdout_df = pd.DataFrame(holdout_rows).sort_values("MS_Research_Score", ascending=False)
-            nested_df.to_csv(outdir / "nested_cv_summary.csv", index=False)
-            folds_df.to_csv(outdir / "nested_cv_fold_results.csv", index=False)
-            holdout_df.to_csv(outdir / "holdout_test_results.csv", index=False)
-            pred_rows = []
-            for name, pred in holdout_predictions.items():
-                for i, (yt, yp, pr) in enumerate(zip(pred["y_true"], pred["y_pred"], pred["y_proba"])):
-                    pred_rows.append({
-                        "Model": name,
-                        "Sample_Index_In_Holdout": i,
-                        "True_Label": yt,
-                        "Predicted_Label": yp,
-                        "Predicted_Probability_MS": pr,
-                    })
-            pd.DataFrame(pred_rows).to_csv(outdir / "holdout_predictions.csv", index=False)
-            save_leaderboard_plot(holdout_df, outdir)
-            save_metric_heatmap(holdout_df, outdir)
-            save_roc_plot(holdout_df, holdout_predictions, outdir)
-    except Exception:
-        with open(outdir / "benchmark_error.log", "w", encoding="utf-8") as f:
-            traceback.print_exc(file=f)
-        print("Benchmark failed silently. See benchmark_error.log for details.")
-        return
+    # Optional stacking model trained only after base model evaluation.
+    stack = build_stacking_model(final_searches, cfg)
+    if stack is not None:
+        print("=" * 72)
+        print("Fitting final Stacking Ensemble on training set only")
+        stack.fit(X_train, y_train)
+        y_proba = safe_predict_proba(stack, X_test)
+        y_pred = (y_proba >= 0.5).astype(int)
+        metrics = evaluate_predictions(y_test, y_pred, y_proba)
+        metrics["Model"] = "Stacking Ensemble"
+        metrics["AUC_95CI"] = "not computed"
+        metrics["Best_Params"] = "base models already tuned on training set"
+        holdout_rows.append(metrics)
+        holdout_predictions["Stacking Ensemble"] = {"y_true": y_test.copy(), "y_proba": y_proba.copy(), "y_pred": y_pred.copy()}
+        print(
+            f"Holdout Stacking Ensemble: AUC={metrics['AUC_ROC']:.3f}, "
+            f"Sensitivity={metrics['Sensitivity']:.3f}, Specificity={metrics['Specificity']:.3f}, "
+            f"Score={metrics['MS_Research_Score']:.2f}\n"
+        )
 
-    print("Benchmark complete. Results saved.")
-    print(holdout_df.to_string(index=False))
+    nested_df = pd.DataFrame(nested_summaries).sort_values("MS_Research_Score", ascending=False)
+    folds_df = pd.concat(fold_tables, ignore_index=True) if fold_tables else pd.DataFrame()
+    holdout_df = pd.DataFrame(holdout_rows).sort_values("MS_Research_Score", ascending=False)
+
+    nested_df.to_csv(outdir / "nested_cv_summary.csv", index=False)
+    folds_df.to_csv(outdir / "nested_cv_fold_results.csv", index=False)
+    holdout_df.to_csv(outdir / "holdout_test_results.csv", index=False)
+
+    # Save holdout predictions for auditability.
+    pred_rows = []
+    for name, pred in holdout_predictions.items():
+        for i, (yt, yp, pr) in enumerate(zip(pred["y_true"], pred["y_pred"], pred["y_proba"])):
+            pred_rows.append({"Model": name, "Sample_Index_In_Holdout": i, "True_Label": yt, "Predicted_Label": yp, "Predicted_Probability_MS": pr})
+    pd.DataFrame(pred_rows).to_csv(outdir / "holdout_predictions.csv", index=False)
+
+    save_leaderboard_plot(holdout_df, outdir)
+    save_metric_heatmap(holdout_df, outdir)
+    save_roc_plot(holdout_df, holdout_predictions, outdir)
+
+    print("=" * 72)
+    print("FINAL HOLDOUT LEADERBOARD")
+    display_cols = [
+        "Model",
+        "MS_Research_Score",
+        "AUC_ROC",
+        "AUC_95CI",
+        "PR_AUC",
+        "Sensitivity",
+        "Specificity",
+        "F1",
+        "Brier",
+        "MCC",
+    ]
+    print(holdout_df[display_cols].to_string(index=False))
     print(f"\nSaved all outputs to: {outdir.resolve()}")
     print("\nPaper wording note: call this 'MS classification from blood RNA profiles', not validated clinical diagnosis.")
 
@@ -925,8 +919,6 @@ def parse_args() -> Config:
     parser.add_argument("--k-best-features", type=int, default=CONFIG.k_best_features)
     parser.add_argument("--n-jobs", type=int, default=CONFIG.n_jobs)
     parser.add_argument("--external-models", default=None, help="Path to external models (.py module or dir of .joblib/.pkl files)")
-    parser.add_argument("--install-deps", action="store_true", help="Install packages from requirements.txt before running the benchmark")
-    parser.add_argument("--requirements-file", default=CONFIG.requirements_file, help="Requirements file to use when --install-deps is enabled")
     args = parser.parse_args()
     return Config(
         data_file=args.data_file,
@@ -939,8 +931,6 @@ def parse_args() -> Config:
         k_best_features=args.k_best_features,
         n_jobs=args.n_jobs,
         external_models=args.external_models,
-        install_deps=args.install_deps,
-        requirements_file=args.requirements_file,
     )
 
 
