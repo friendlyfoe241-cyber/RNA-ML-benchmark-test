@@ -38,11 +38,13 @@ The framework benchmarks multiple machine learning models under a standardized e
 
 2. Open terminal at your local copy of the repository folder
 
-3. Install dependencies
+3. Run the benchmark
+- to run without external models ⤵️
 ```bash
-pip install -r requirements.txt
+python3 "ms_ml_benchmark.py"
 ```
-4. Run the benchmark
+
+- to run with external models ⤵️
 ```bash
 python3 "ms_ml_benchmark.py" --external-models sample_external_models.py
 ```
