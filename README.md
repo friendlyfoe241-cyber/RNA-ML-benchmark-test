@@ -44,7 +44,7 @@ pip install -r requirements.txt
 ```
 4. Run the benchmark
 ```bash
-python ms_ml_benchmark.py
+python3 "ms_ml_benchmark v2.py" --external-models sample_external_models.py
 ```
 
 ## Results
