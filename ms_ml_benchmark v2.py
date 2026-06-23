@@ -17,15 +17,50 @@
 
 from __future__ import annotations
 
-# Redirect stderr to suppress all warnings (including Cython warnings from sklearn)
 import sys
 import os
+import subprocess
+
+# Auto-install missing packages before any other imports
+def _ensure_packages():
+    """Check and install missing required packages automatically."""
+    packages = {
+        "numpy": "numpy",
+        "scipy": "scipy", 
+        "pandas": "pandas",
+        "scikit-learn": "scikit-learn",
+        "matplotlib": "matplotlib",
+        "joblib": "joblib",
+        "imbalanced-learn": "imbalanced-learn",
+        "xgboost": "xgboost",
+        "lightgbm": "lightgbm",
+        "seaborn": "seaborn",
+    }
+    
+    missing = []
+    for import_name, pkg_name in packages.items():
+        try:
+            __import__(import_name)
+        except ImportError:
+            missing.append((import_name, pkg_name))
+    
+    if missing:
+        print("\n\033[93m📦 Auto-installing missing packages...\033[0m", flush=True)
+        for import_name, pkg_name in missing:
+            print(f"  Installing {pkg_name}...", flush=True)
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", pkg_name, "-q", "--disable-pip-version-check"],
+                stdout=subprocess.DEVNULL
+            )
+        print("\033[92m✓ All dependencies installed!\033[0m\n", flush=True)
+
+_ensure_packages()
+
+# Now redirect stderr to suppress all warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = "4"
-# Suppress warnings at the source level
 os.environ["PYTHONWARNINGS"] = "ignore"
 sys.stderr = open(os.devnull, 'w')
 
-# Suppress all Python warnings
 import warnings as _warnings
 _warnings.filterwarnings("ignore")
 _warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -34,7 +69,6 @@ _warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.line
 _warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.utils.*")
 _warnings.simplefilter("ignore")
 
-# Suppress numpy floating-point warnings
 import numpy as np
 np.seterr(all='ignore')
 import numpy.core as _core
@@ -51,11 +85,10 @@ import argparse
 import gzip
 import json
 import platform
-import subprocess
-import sys
 import time
 import traceback
 import warnings
+import importlib.util
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -64,9 +97,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import importlib.util
 import joblib
 try:
     from tqdm import tqdm as _tqdm
