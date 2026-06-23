@@ -1060,7 +1060,13 @@ def run(cfg: Config) -> None:
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', None)
     
-    print("\n" + display_df.to_string(index=False))
+    # Print colored headers
+    headers = list(display_df.columns)
+    header_line = "  ".join(f"\033[96m{h}\033[0m" for h in headers)  # 96=cyan, use 93(yellow), 92(green), 91(red), etc.
+    print("\n" + header_line)
+    print("-" * len(header_line.replace("\033[96m", "").replace("\033[0m", "")))
+    # Print data rows
+    print(display_df.to_string(index=False))
     print("\n" + "="*100)
     print(f"\nSaved all outputs to: {outdir.resolve()}")
     print("\nPaper wording note: call this 'MS classification from blood RNA profiles', not validated clinical diagnosis.")
