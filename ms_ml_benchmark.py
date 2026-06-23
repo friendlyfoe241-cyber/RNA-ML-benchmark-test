@@ -988,7 +988,7 @@ def run(cfg: Config) -> None:
 
         stack = build_stacking_model(final_searches, cfg)
         if stack:
-            print("\n\033[96m🔄\033[0m Training Stacking Ensemble...", flush=True)
+            print("\n\033[93m🔄 Training Stacking Ensemble... \033[0m", flush=True)
             stack.fit(X_train, y_train)
             y_proba = safe_predict_proba(stack, X_test)
             y_pred = (y_proba >= 0.5).astype(int)
