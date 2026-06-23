@@ -24,51 +24,66 @@ import platform
 # Auto-install missing packages before any other imports
 def _ensure_packages():
     """Check and install missing required packages automatically."""
-    packages = [
-        "numpy", "scipy", "pandas", "scikit-learn", "matplotlib",
-        "joblib", "imbalanced-learn", "xgboost", "lightgbm", "seaborn"
+    # Core packages - must be installed
+    core_packages = ["numpy", "scipy", "pandas", "matplotlib", "joblib", "seaborn"]
+    
+    # Optional packages with different import names
+    optional_packages = [
+        ("scikit-learn", "sklearn"),
+        ("imbalanced-learn", "imblearn"),
+        ("lightgbm", "lightgbm"),
     ]
     
-    # Check which packages are importable (catch ALL exceptions)
-    missing = []
-    for pkg_name in packages:
+    # Install core packages
+    for pkg_name in core_packages:
         try:
             __import__(pkg_name)
         except Exception:
-            missing.append(pkg_name)
-    
-    if missing:
-        print("\n[PACKAGES] Auto-installing missing packages...\n", flush=True)
-        for pkg_name in missing:
             print(f"  Installing {pkg_name}...", flush=True)
             subprocess.check_call(
                 [sys.executable, "-m", "pip", "install", pkg_name, "-q", "--disable-pip-version-check"],
                 stdout=subprocess.DEVNULL
             )
-        
-        # Re-check after installation
-        still_missing = []
-        for pkg_name in missing:
-            try:
-                __import__(pkg_name)
-            except Exception:
-                still_missing.append(pkg_name)
-        
-        # Fix OpenMP issue on macOS for xgboost
+    
+    # Install optional packages
+    for pkg_name, import_name in optional_packages:
+        try:
+            __import__(import_name)
+        except Exception:
+            print(f"  Installing {pkg_name}...", flush=True)
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", pkg_name, "-q", "--disable-pip-version-check"],
+                stdout=subprocess.DEVNULL
+            )
+    
+    # Handle xgboost specially (requires libomp on macOS)
+    try:
+        __import__("xgboost")
+    except Exception:
+        print(f"  Installing xgboost...", flush=True)
         if platform.system() == "Darwin":
+            # Try to install libomp first
             try:
                 subprocess.check_call(
                     ["brew", "install", "libomp"],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                 )
-                print("  Installed libomp for XGBoost", flush=True)
+                print("  Installed libomp", flush=True)
             except Exception:
-                print("  Could not auto-install libomp (run 'brew install libomp' manually if XGBoost fails)", flush=True)
-        
-        if still_missing:
-            print(f"\n[WARN] Some packages could not be installed: {still_missing}\n", flush=True)
-        else:
-            print("[OK] All dependencies installed!\n", flush=True)
+                pass
+        # Install xgboost
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "xgboost", "-q", "--disable-pip-version-check"],
+            stdout=subprocess.DEVNULL
+        )
+    
+    # Final status
+    try:
+        __import__("xgboost")
+        print("[OK] All dependencies ready.", flush=True)
+    except Exception:
+        print("[INFO] XGBoost requires libomp. Run: brew install libomp", flush=True)
+        print("       The benchmark will skip XGBoost model but continue.", flush=True)
 
 _ensure_packages()
 
