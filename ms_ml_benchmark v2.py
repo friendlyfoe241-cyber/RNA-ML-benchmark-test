@@ -966,16 +966,19 @@ def run(cfg: Config) -> None:
     print("  BENCHMARK RESULTS")
     print("="*100)
     
-    # Round numeric columns for cleaner display (keep all columns)
+    # Round numeric columns for cleaner display
     display_df = holdout_df.copy()
     for col in display_df.columns:
-        if col not in ["Model", "AUC_95CI", "Best_Params"] and display_df[col].dtype in ['float64', 'float32']:
+        if col not in ["Model", "AUC_95CI", "Best_Params", "Balanced_Accuracy"] and display_df[col].dtype in ['float64', 'float32']:
             display_df[col] = display_df[col].round(3)
+    
+    # Remove columns that cause formatting issues
+    cols_to_drop = ["Best_Params", "Balanced_Accuracy"]
+    display_df = display_df.drop(columns=[c for c in cols_to_drop if c in display_df.columns])
     
     # Print with proper column spacing
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', None)
-    pd.set_option('display.max_colwidth', 50)
     
     print("\n" + display_df.to_string(index=False))
     print("\n" + "="*100)
