@@ -848,20 +848,19 @@ def run(cfg: Config) -> None:
     outdir.mkdir(parents=True, exist_ok=True)
 
     try:
-        with suppress_output():
-            save_run_metadata(cfg, outdir)
-            df = load_geo_series_matrix(cfg.data_file)
-            X, y, feature_names = get_xy(df)
-            X_train, X_test, y_train, y_test = train_test_split(
-                X,
-                y,
-                test_size=cfg.test_size,
-                stratify=y,
-                random_state=cfg.random_seed,
-            )
-            registry = model_grid_registry(cfg)
-            ext_to_tune, ext_pretrained = {}, {}
-            if cfg.external_models:
+        save_run_metadata(cfg, outdir)
+        df = load_geo_series_matrix(cfg.data_file)
+        X, y, feature_names = get_xy(df)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X,
+            y,
+            test_size=cfg.test_size,
+            stratify=y,
+            random_state=cfg.random_seed,
+        )
+        registry = model_grid_registry(cfg)
+        ext_to_tune, ext_pretrained = {}, {}
+        if cfg.external_models:
                 try:
                     ext_to_tune, ext_pretrained = load_external_models(cfg.external_models, cfg)
                 except Exception:
