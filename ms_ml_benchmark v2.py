@@ -25,6 +25,7 @@ os.environ["LOKY_MAX_CPU_COUNT"] = "4"
 import warnings as _warnings
 _warnings.filterwarnings("ignore")
 _warnings.filterwarnings("ignore", category=RuntimeWarning)
+_warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.*")
 _warnings.simplefilter("ignore")
 
 import logging
@@ -99,6 +100,11 @@ warnings.filterwarnings("ignore", category=UserWarning, module="resource_tracker
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 warnings.filterwarnings("ignore", message=".*leaked.*")
 warnings.filterwarnings("ignore", message=".*joblib_memmapping.*")
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.*")
+warnings.filterwarnings("ignore", message=".*overflow encountered in matmul.*")
+warnings.filterwarnings("ignore", message=".*invalid value encountered in matmul.*")
+warnings.filterwarnings("ignore", message=".*divide by zero encountered.*")
 warnings.simplefilter("ignore")
 
 
