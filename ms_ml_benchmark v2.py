@@ -17,11 +17,15 @@
 
 from __future__ import annotations
 
-# Suppress joblib/loky resource tracker warnings before any parallel processing
+# Redirect stderr to suppress all warnings (including Cython warnings from sklearn)
+import sys
 import os
 os.environ["LOKY_MAX_CPU_COUNT"] = "4"
+# Suppress warnings at the source level
+os.environ["PYTHONWARNINGS"] = "ignore"
+sys.stderr = open(os.devnull, 'w')
 
-# Suppress ALL warnings at the earliest possible moment
+# Suppress all Python warnings
 import warnings as _warnings
 _warnings.filterwarnings("ignore")
 _warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -30,11 +34,9 @@ _warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.line
 _warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.utils.*")
 _warnings.simplefilter("ignore")
 
-# Suppress numpy floating-point warnings (these cause sklearn RuntimeWarnings)
+# Suppress numpy floating-point warnings
 import numpy as np
-old_seterr = np.seterr
 np.seterr(all='ignore')
-# Monkey patch to suppress warnings during numpy operations
 import numpy.core as _core
 if hasattr(_core, 'seterr'):
     _core.seterr(all='ignore')
