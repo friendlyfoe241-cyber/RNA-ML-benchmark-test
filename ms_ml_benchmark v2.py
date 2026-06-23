@@ -988,7 +988,7 @@ def run(cfg: Config) -> None:
 
         stack = build_stacking_model(final_searches, cfg)
         if stack:
-            print("\n\033[96m🔄\033[0m Training Stacking Ensemble...", flush=True)
+            print("\n\033[93m🔄 Training Stacking Ensemble... \033[0m", flush=True)
             stack.fit(X_train, y_train)
             y_proba = safe_predict_proba(stack, X_test)
             y_pred = (y_proba >= 0.5).astype(int)
@@ -1035,9 +1035,9 @@ def run(cfg: Config) -> None:
         print("Benchmark failed silently. See benchmark_error.log for details.")
         return
 
-    print("\n" + "="*100)
-    print("  BENCHMARK RESULTS")
-    print("="*100)
+    print("\n" + "\033[0;31m=\033[0m"*100)
+    print("\033[33m  BENCHMARK RESULTS\033[0m")
+    print("\033[0;31m=\033[0m"*100)
     
     # Round numeric columns for cleaner display
     display_df = holdout_df.copy()
@@ -1060,14 +1060,14 @@ def run(cfg: Config) -> None:
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', None)
     
-    # Print colored headers
     headers = list(display_df.columns)
-    header_line = "  ".join(f"\033[96m{h}\033[0m" for h in headers)  # 96=cyan, use 93(yellow), 92(green), 91(red), etc.
+    header_line = "  ".join(f"\033[91m{h}\033[0m" for h in headers)
     print("\n" + header_line)
-    print("-" * len(header_line.replace("\033[96m", "").replace("\033[0m", "")))
-    # Print data rows
-    print(display_df.to_string(index=False))
-    print("\n" + "="*100)
+    for _, row in display_df.iterrows():
+        model_name = f"\033[93m{row['Model']}\033[0m"  # 93=yellow for model name
+        values = "  ".join(str(v) for v in row.iloc[1:])
+        print(f"{model_name}  {values}")
+    print("\n" + "\033[0;31m=\033[0m"*100)
     print(f"\nSaved all outputs to: {outdir.resolve()}")
     print("\nPaper wording note: call this 'MS classification from blood RNA profiles', not validated clinical diagnosis.")
 
