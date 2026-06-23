@@ -878,10 +878,14 @@ def run(cfg: Config) -> None:
             holdout_rows: List[Dict[str, Any]] = []
             holdout_predictions: Dict[str, Dict[str, np.ndarray]] = {}
 
-            for name, (pipeline, grid) in registry.items():
+            total_models = len(registry)
+            print("\n\033[93m🔄 Training and evaluating models...\033[0m")
+            for i, (name, (pipeline, grid)) in enumerate(registry.items(), 1):
+                print(f"\n\033[96m[{i}/{total_models}]\033[0m Training: {name}")
                 summary, folds = nested_cv_evaluate_model(name, pipeline, grid, X_train, y_train, cfg)
                 nested_summaries.append(summary)
                 fold_tables.append(folds)
+                print(f"  \033[92m✓\033[0m Nested CV complete. Score: {summary['MS_Research_Score']:.3f}")
                 search = fit_final_model(name, pipeline, grid, X_train, y_train, cfg)
                 final_searches[name] = search
                 holdout = evaluate_holdout(search, X_test, y_test, cfg)
@@ -893,6 +897,7 @@ def run(cfg: Config) -> None:
                     "y_proba": y_proba.copy(),
                     "y_pred": (y_proba >= 0.5).astype(int),
                 }
+                print(f"  \033[92m✓\033[0m Holdout AUC: {holdout['AUC_ROC']:.3f}")
 
             if ext_pretrained:
                 for name, est in ext_pretrained.items():
@@ -909,8 +914,8 @@ def run(cfg: Config) -> None:
                         "y_pred": y_pred.copy(),
                     }
 
-            stack = build_stacking_model(final_searches, cfg)
-            if stack is not None:
+            if stack:
+                print("\n\033[96m🔄\033[0m Training Stacking Ensemble...")
                 stack.fit(X_train, y_train)
                 y_proba = safe_predict_proba(stack, X_test)
                 y_pred = (y_proba >= 0.5).astype(int)
