@@ -26,7 +26,20 @@ import warnings as _warnings
 _warnings.filterwarnings("ignore")
 _warnings.filterwarnings("ignore", category=RuntimeWarning)
 _warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.*")
+_warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.linear_model.*")
+_warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.utils.*")
 _warnings.simplefilter("ignore")
+
+# Suppress numpy floating-point warnings (these cause sklearn RuntimeWarnings)
+import numpy as np
+old_seterr = np.seterr
+np.seterr(all='ignore')
+# Monkey patch to suppress warnings during numpy operations
+import numpy.core as _core
+if hasattr(_core, 'seterr'):
+    _core.seterr(all='ignore')
+if hasattr(_core.numerictypes, 'seterr'):
+    _core.numerictypes.seterr(all='ignore')
 
 import logging
 logging.getLogger("joblib").setLevel(logging.ERROR)
