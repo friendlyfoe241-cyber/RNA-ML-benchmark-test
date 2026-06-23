@@ -58,9 +58,11 @@ def _ensure_packages():
     
     # Handle xgboost specially (requires libomp on macOS)
     try:
+        __import__("xgboost")
     except Exception:
         print(f"  Installing xgboost...", flush=True)
         if platform.system() == "Darwin":
+            # Try to install libomp first
             try:
                 subprocess.check_call(
                     ["brew", "install", "libomp"],
@@ -68,6 +70,7 @@ def _ensure_packages():
                 )
                 print("  Installed libomp", flush=True)
             except Exception:
+                pass
         # Install xgboost
         subprocess.check_call(
             [sys.executable, "-m", "pip", "install", "xgboost", "-q", "--disable-pip-version-check"],
