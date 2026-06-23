@@ -962,22 +962,23 @@ def run(cfg: Config) -> None:
         print("Benchmark failed silently. See benchmark_error.log for details.")
         return
 
-    print("\n" + "="*80)
+    print("\n" + "="*100)
     print("  BENCHMARK RESULTS")
-    print("="*80)
+    print("="*100)
     
-    # Format the results table nicely
-    display_cols = ["Model", "AUC_ROC", "AUC_95CI", "Sensitivity", "Specificity", "Accuracy", "MCC", "F1"]
-    available_cols = [c for c in display_cols if c in holdout_df.columns]
-    
-    # Round numeric columns for cleaner display
-    display_df = holdout_df[available_cols].copy()
+    # Round numeric columns for cleaner display (keep all columns)
+    display_df = holdout_df.copy()
     for col in display_df.columns:
-        if col != "AUC_95CI" and display_df[col].dtype in ['float64', 'float32']:
+        if col not in ["Model", "AUC_95CI", "Best_Params"] and display_df[col].dtype in ['float64', 'float32']:
             display_df[col] = display_df[col].round(3)
     
+    # Print with proper column spacing
+    pd.set_option('display.max_columns', None)
+    pd.set_option('display.width', None)
+    pd.set_option('display.max_colwidth', 50)
+    
     print("\n" + display_df.to_string(index=False))
-    print("\n" + "="*80)
+    print("\n" + "="*100)
     print(f"\nSaved all outputs to: {outdir.resolve()}")
     print("\nPaper wording note: call this 'MS classification from blood RNA profiles', not validated clinical diagnosis.")
 
