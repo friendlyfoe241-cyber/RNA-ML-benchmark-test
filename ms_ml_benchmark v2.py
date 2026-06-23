@@ -956,8 +956,22 @@ def run(cfg: Config) -> None:
         print("Benchmark failed silently. See benchmark_error.log for details.")
         return
 
-    print("Benchmark complete. Results saved.")
-    print(holdout_df.to_string(index=False))
+    print("\n" + "="*80)
+    print("  BENCHMARK RESULTS")
+    print("="*80)
+    
+    # Format the results table nicely
+    display_cols = ["Model", "AUC_ROC", "AUC_95CI", "Sensitivity", "Specificity", "Accuracy", "MCC", "F1"]
+    available_cols = [c for c in display_cols if c in holdout_df.columns]
+    
+    # Round numeric columns for cleaner display
+    display_df = holdout_df[available_cols].copy()
+    for col in display_df.columns:
+        if col != "AUC_95CI" and display_df[col].dtype in ['float64', 'float32']:
+            display_df[col] = display_df[col].round(3)
+    
+    print("\n" + display_df.to_string(index=False))
+    print("\n" + "="*80)
     print(f"\nSaved all outputs to: {outdir.resolve()}")
     print("\nPaper wording note: call this 'MS classification from blood RNA profiles', not validated clinical diagnosis.")
 
