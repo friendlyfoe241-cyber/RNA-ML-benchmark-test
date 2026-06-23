@@ -861,95 +861,95 @@ def run(cfg: Config) -> None:
         registry = model_grid_registry(cfg)
         ext_to_tune, ext_pretrained = {}, {}
         if cfg.external_models:
-                try:
-                    ext_to_tune, ext_pretrained = load_external_models(cfg.external_models, cfg)
-                except Exception:
-                    ext_to_tune, ext_pretrained = {}, {}
+            try:
+                ext_to_tune, ext_pretrained = load_external_models(cfg.external_models, cfg)
+            except Exception:
+                ext_to_tune, ext_pretrained = {}, {}
 
-            if ext_to_tune:
-                for name, (estimator, grid) in ext_to_tune.items():
-                    pipeline = estimator if hasattr(estimator, "named_steps") else make_preprocessing_pipeline(estimator, cfg)
-                    registry[name] = (pipeline, grid or {})
+        if ext_to_tune:
+            for name, (estimator, grid) in ext_to_tune.items():
+                pipeline = estimator if hasattr(estimator, "named_steps") else make_preprocessing_pipeline(estimator, cfg)
+                registry[name] = (pipeline, grid or {})
 
-            nested_summaries: List[Dict[str, Any]] = []
-            fold_tables: List[pd.DataFrame] = []
-            final_searches: Dict[str, GridSearchCV] = {}
-            holdout_rows: List[Dict[str, Any]] = []
-            holdout_predictions: Dict[str, Dict[str, np.ndarray]] = {}
+        nested_summaries: List[Dict[str, Any]] = []
+        fold_tables: List[pd.DataFrame] = []
+        final_searches: Dict[str, GridSearchCV] = {}
+        holdout_rows: List[Dict[str, Any]] = []
+        holdout_predictions: Dict[str, Dict[str, np.ndarray]] = {}
 
-            total_models = len(registry)
-            print("\n\033[93m🔄 Training and evaluating models...\033[0m", flush=True)
-            for i, (name, (pipeline, grid)) in enumerate(registry.items(), 1):
-                print(f"\n\033[96m[{i}/{total_models}]\033[0m Training: {name}", flush=True)
-                summary, folds = nested_cv_evaluate_model(name, pipeline, grid, X_train, y_train, cfg)
-                nested_summaries.append(summary)
-                fold_tables.append(folds)
-                print(f"  \033[92m✓\033[0m Nested CV complete. Score: {summary['MS_Research_Score']:.3f}", flush=True)
-                search = fit_final_model(name, pipeline, grid, X_train, y_train, cfg)
-                final_searches[name] = search
-                holdout = evaluate_holdout(search, X_test, y_test, cfg)
-                holdout["Model"] = name
-                holdout_rows.append(holdout)
-                y_proba = safe_predict_proba(search.best_estimator_, X_test)
-                holdout_predictions[name] = {
-                    "y_true": y_test.copy(),
-                    "y_proba": y_proba.copy(),
-                    "y_pred": (y_proba >= 0.5).astype(int),
-                }
-                print(f"  \033[92m✓\033[0m Holdout AUC: {holdout['AUC_ROC']:.3f}", flush=True)
+        total_models = len(registry)
+        print("\n\033[93m🔄 Training and evaluating models...\033[0m", flush=True)
+        for i, (name, (pipeline, grid)) in enumerate(registry.items(), 1):
+            print(f"\n\033[96m[{i}/{total_models}]\033[0m Training: {name}", flush=True)
+            summary, folds = nested_cv_evaluate_model(name, pipeline, grid, X_train, y_train, cfg)
+            nested_summaries.append(summary)
+            fold_tables.append(folds)
+            print(f"  \033[92m✓\033[0m Nested CV complete. Score: {summary['MS_Research_Score']:.3f}", flush=True)
+            search = fit_final_model(name, pipeline, grid, X_train, y_train, cfg)
+            final_searches[name] = search
+            holdout = evaluate_holdout(search, X_test, y_test, cfg)
+            holdout["Model"] = name
+            holdout_rows.append(holdout)
+            y_proba = safe_predict_proba(search.best_estimator_, X_test)
+            holdout_predictions[name] = {
+                "y_true": y_test.copy(),
+                "y_proba": y_proba.copy(),
+                "y_pred": (y_proba >= 0.5).astype(int),
+            }
+            print(f"  \033[92m✓\033[0m Holdout AUC: {holdout['AUC_ROC']:.3f}", flush=True)
 
-            if ext_pretrained:
-                for name, est in ext_pretrained.items():
-                    y_proba = safe_predict_proba(est, X_test)
-                    y_pred = (y_proba >= 0.5).astype(int)
-                    metrics = evaluate_predictions(y_test, y_pred, y_proba)
-                    metrics["Model"] = name
-                    metrics["AUC_95CI"] = "not computed"
-                    metrics["Best_Params"] = "pretrained external model (no tuning)"
-                    holdout_rows.append(metrics)
-                    holdout_predictions[name] = {
-                        "y_true": y_test.copy(),
-                        "y_proba": y_proba.copy(),
-                        "y_pred": y_pred.copy(),
-                    }
-
-            stack = build_stacking_model(final_searches, cfg)
-            if stack:
-                print("\n\033[96m🔄\033[0m Training Stacking Ensemble...", flush=True)
-                stack.fit(X_train, y_train)
-                y_proba = safe_predict_proba(stack, X_test)
+        if ext_pretrained:
+            for name, est in ext_pretrained.items():
+                y_proba = safe_predict_proba(est, X_test)
                 y_pred = (y_proba >= 0.5).astype(int)
                 metrics = evaluate_predictions(y_test, y_pred, y_proba)
-                metrics["Model"] = "Stacking Ensemble"
+                metrics["Model"] = name
                 metrics["AUC_95CI"] = "not computed"
-                metrics["Best_Params"] = "base models already tuned on training set"
+                metrics["Best_Params"] = "pretrained external model (no tuning)"
                 holdout_rows.append(metrics)
-                holdout_predictions["Stacking Ensemble"] = {
+                holdout_predictions[name] = {
                     "y_true": y_test.copy(),
                     "y_proba": y_proba.copy(),
                     "y_pred": y_pred.copy(),
                 }
 
-            nested_df = pd.DataFrame(nested_summaries).sort_values("MS_Research_Score", ascending=False)
-            folds_df = pd.concat(fold_tables, ignore_index=True) if fold_tables else pd.DataFrame()
-            holdout_df = pd.DataFrame(holdout_rows).sort_values("MS_Research_Score", ascending=False)
-            nested_df.to_csv(outdir / "nested_cv_summary.csv", index=False)
-            folds_df.to_csv(outdir / "nested_cv_fold_results.csv", index=False)
-            holdout_df.to_csv(outdir / "holdout_test_results.csv", index=False)
-            pred_rows = []
-            for name, pred in holdout_predictions.items():
-                for i, (yt, yp, pr) in enumerate(zip(pred["y_true"], pred["y_pred"], pred["y_proba"])):
-                    pred_rows.append({
-                        "Model": name,
-                        "Sample_Index_In_Holdout": i,
-                        "True_Label": yt,
-                        "Predicted_Label": yp,
-                        "Predicted_Probability_MS": pr,
-                    })
-            pd.DataFrame(pred_rows).to_csv(outdir / "holdout_predictions.csv", index=False)
-            save_leaderboard_plot(holdout_df, outdir)
-            save_metric_heatmap(holdout_df, outdir)
-            save_roc_plot(holdout_df, holdout_predictions, outdir)
+        stack = build_stacking_model(final_searches, cfg)
+        if stack:
+            print("\n\033[96m🔄\033[0m Training Stacking Ensemble...", flush=True)
+            stack.fit(X_train, y_train)
+            y_proba = safe_predict_proba(stack, X_test)
+            y_pred = (y_proba >= 0.5).astype(int)
+            metrics = evaluate_predictions(y_test, y_pred, y_proba)
+            metrics["Model"] = "Stacking Ensemble"
+            metrics["AUC_95CI"] = "not computed"
+            metrics["Best_Params"] = "base models already tuned on training set"
+            holdout_rows.append(metrics)
+            holdout_predictions["Stacking Ensemble"] = {
+                "y_true": y_test.copy(),
+                "y_proba": y_proba.copy(),
+                "y_pred": y_pred.copy(),
+            }
+
+        nested_df = pd.DataFrame(nested_summaries).sort_values("MS_Research_Score", ascending=False)
+        folds_df = pd.concat(fold_tables, ignore_index=True) if fold_tables else pd.DataFrame()
+        holdout_df = pd.DataFrame(holdout_rows).sort_values("MS_Research_Score", ascending=False)
+        nested_df.to_csv(outdir / "nested_cv_summary.csv", index=False)
+        folds_df.to_csv(outdir / "nested_cv_fold_results.csv", index=False)
+        holdout_df.to_csv(outdir / "holdout_test_results.csv", index=False)
+        pred_rows = []
+        for name, pred in holdout_predictions.items():
+            for i, (yt, yp, pr) in enumerate(zip(pred["y_true"], pred["y_pred"], pred["y_proba"])):
+                pred_rows.append({
+                    "Model": name,
+                    "Sample_Index_In_Holdout": i,
+                    "True_Label": yt,
+                    "Predicted_Label": yp,
+                    "Predicted_Probability_MS": pr,
+                })
+        pd.DataFrame(pred_rows).to_csv(outdir / "holdout_predictions.csv", index=False)
+        save_leaderboard_plot(holdout_df, outdir)
+        save_metric_heatmap(holdout_df, outdir)
+        save_roc_plot(holdout_df, holdout_predictions, outdir)
     except Exception:
         with open(outdir / "benchmark_error.log", "w", encoding="utf-8") as f:
             traceback.print_exc(file=f)
