@@ -20,41 +20,58 @@ from __future__ import annotations
 import sys
 import os
 import subprocess
-
+import platform
 # Auto-install missing packages before any other imports
 def _ensure_packages():
     """Check and install missing required packages automatically."""
-    packages = {
-        "numpy": "numpy",
-        "scipy": "scipy", 
-        "pandas": "pandas",
-        "scikit-learn": "scikit-learn",
-        "matplotlib": "matplotlib",
-        "joblib": "joblib",
-        "imbalanced-learn": "imbalanced-learn",
-        "xgboost": "xgboost",
-        "lightgbm": "lightgbm",
-        "seaborn": "seaborn",
-    }
+    packages = [
+        "numpy", "scipy", "pandas", "scikit-learn", "matplotlib",
+        "joblib", "imbalanced-learn", "xgboost", "lightgbm", "seaborn"
+    ]
     
+    # Check which packages are importable (catch ALL exceptions)
     missing = []
-    for import_name, pkg_name in packages.items():
+    for pkg_name in packages:
         try:
-            __import__(import_name)
-        except ImportError:
-            missing.append((import_name, pkg_name))
+            __import__(pkg_name)
+        except Exception:
+            missing.append(pkg_name)
     
     if missing:
-        print("\n\033[93m📦 Auto-installing missing packages...\033[0m", flush=True)
-        for import_name, pkg_name in missing:
+        print("\n[PACKAGES] Auto-installing missing packages...\n", flush=True)
+        for pkg_name in missing:
             print(f"  Installing {pkg_name}...", flush=True)
             subprocess.check_call(
                 [sys.executable, "-m", "pip", "install", pkg_name, "-q", "--disable-pip-version-check"],
                 stdout=subprocess.DEVNULL
             )
-        print("\033[92m✓ All dependencies installed!\033[0m\n", flush=True)
+        
+        # Re-check after installation
+        still_missing = []
+        for pkg_name in missing:
+            try:
+                __import__(pkg_name)
+            except Exception:
+                still_missing.append(pkg_name)
+        
+        # Fix OpenMP issue on macOS for xgboost
+        if platform.system() == "Darwin":
+            try:
+                subprocess.check_call(
+                    ["brew", "install", "libomp"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                print("  Installed libomp for XGBoost", flush=True)
+            except Exception:
+                print("  Could not auto-install libomp (run 'brew install libomp' manually if XGBoost fails)", flush=True)
+        
+        if still_missing:
+            print(f"\n[WARN] Some packages could not be installed: {still_missing}\n", flush=True)
+        else:
+            print("[OK] All dependencies installed!\n", flush=True)
 
 _ensure_packages()
+
 
 # Now redirect stderr to suppress all warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = "4"
