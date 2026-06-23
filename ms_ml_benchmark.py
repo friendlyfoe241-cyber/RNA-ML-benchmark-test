@@ -1035,9 +1035,9 @@ def run(cfg: Config) -> None:
         print("Benchmark failed silently. See benchmark_error.log for details.")
         return
 
-    print("\n" + "="*100)
-    print("  BENCHMARK RESULTS")
-    print("="*100)
+    print("\n" + "\033[0;31m=\033[0m"*100)
+    print("\033[33m  BENCHMARK RESULTS\033[0m")
+    print("\033[0;31m=\033[0m"*100)
     
     # Round numeric columns for cleaner display
     display_df = holdout_df.copy()
@@ -1060,8 +1060,20 @@ def run(cfg: Config) -> None:
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', None)
     
-    print("\n" + display_df.to_string(index=False))
-    print("\n" + "="*100)
+    # Calculate column widths for alignment
+    headers = list(display_df.columns)
+    col_widths = [max(len(str(h)), display_df[h].astype(str).str.len().max()) for h in headers]
+    
+    # Print colored headers (left-aligned)
+    header_line = "  ".join(f"\033[91m{headers[i]:<{col_widths[i]}}\033[0m" for i in range(len(headers)))
+    print("\n" + header_line)
+    
+    # Print data rows (all left-aligned)
+    for _, row in display_df.iterrows():
+        model_name = f"\033[93m{row['Model']:<{col_widths[0]}}\033[0m"  # 93=yellow for model name
+        values = "  ".join(f"{row.iloc[i]:<{col_widths[i]}}" for i in range(1, len(headers)))
+        print(f"{model_name}  {values}")
+    print("\n" + "\033[0;31m=\033[0m"*100)
     print(f"\nSaved all outputs to: {outdir.resolve()}")
     print("\nPaper wording note: call this 'MS classification from blood RNA profiles', not validated clinical diagnosis.")
 
