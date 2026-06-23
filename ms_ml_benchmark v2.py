@@ -976,6 +976,13 @@ def run(cfg: Config) -> None:
     cols_to_drop = ["Best_Params", "Balanced_Accuracy"]
     display_df = display_df.drop(columns=[c for c in cols_to_drop if c in display_df.columns])
     
+    # Reorder columns: Model first, MS_Research_Score second, then rest
+    cols = list(display_df.columns)
+    if "Model" in cols and "MS_Research_Score" in cols:
+        cols.remove("Model")
+        cols.remove("MS_Research_Score")
+        display_df = display_df[["Model", "MS_Research_Score"] + cols]
+    
     # Print with proper column spacing
     pd.set_option('display.max_columns', None)
     pd.set_option('display.width', None)
