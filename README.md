@@ -1,3 +1,4 @@
+![MS Blood RNA ML Benchmark](image.png)
 # MS Blood RNA ML Benchmark
 
 A publication-style machine learning benchmarking framework for classifying Multiple Sclerosis (MS) using whole blood RNA expression data.
