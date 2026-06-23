@@ -921,7 +921,13 @@ def run(cfg: Config) -> None:
             y_pred = (y_proba >= 0.5).astype(int)
             metrics = evaluate_predictions(y_test, y_pred, y_proba)
             metrics["Model"] = "Stacking Ensemble"
-            metrics["AUC_95CI"] = "not computed"
+            # Compute bootstrap AUC confidence interval for stacking ensemble
+            ci_auc = bootstrap_metric_ci(
+                y_test, y_pred, y_proba,
+                lambda yt, yp, pr: roc_auc_score(yt, pr),
+                cfg.n_bootstrap, cfg.random_seed,
+            )
+            metrics["AUC_95CI"] = f"[{ci_auc[0]:.3f}, {ci_auc[1]:.3f}]"
             metrics["Best_Params"] = "base models already tuned on training set"
             holdout_rows.append(metrics)
             holdout_predictions["Stacking Ensemble"] = {
