@@ -17,15 +17,79 @@
 
 from __future__ import annotations
 
-# Redirect stderr to suppress all warnings (including Cython warnings from sklearn)
 import sys
 import os
+import subprocess
+import platform
+# Auto-install missing packages before any other imports
+def _ensure_packages():
+    """Check and install missing required packages automatically."""
+    # Core packages - must be installed
+    core_packages = ["numpy", "scipy", "pandas", "matplotlib", "joblib", "seaborn"]
+    
+    # Optional packages with different import names
+    optional_packages = [
+        ("scikit-learn", "sklearn"),
+        ("imbalanced-learn", "imblearn"),
+        ("lightgbm", "lightgbm"),
+    ]
+    
+    # Install core packages
+    for pkg_name in core_packages:
+        try:
+            __import__(pkg_name)
+        except Exception:
+            print(f"  Installing {pkg_name}...", flush=True)
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", pkg_name, "-q", "--disable-pip-version-check"],
+                stdout=subprocess.DEVNULL
+            )
+    
+    # Install optional packages
+    for pkg_name, import_name in optional_packages:
+        try:
+            __import__(import_name)
+        except Exception:
+            print(f"  Installing {pkg_name}...", flush=True)
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", pkg_name, "-q", "--disable-pip-version-check"],
+                stdout=subprocess.DEVNULL
+            )
+    
+    # Handle xgboost specially (requires libomp on macOS)
+    try:
+    except Exception:
+        print(f"  Installing xgboost...", flush=True)
+        if platform.system() == "Darwin":
+            try:
+                subprocess.check_call(
+                    ["brew", "install", "libomp"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                print("  Installed libomp", flush=True)
+            except Exception:
+        # Install xgboost
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "xgboost", "-q", "--disable-pip-version-check"],
+            stdout=subprocess.DEVNULL
+        )
+    
+    # Final status
+    try:
+        __import__("xgboost")
+        print("[OK] All dependencies ready.", flush=True)
+    except Exception:
+        print("[INFO] XGBoost requires libomp. Run: brew install libomp", flush=True)
+        print("       The benchmark will skip XGBoost model but continue.", flush=True)
+
+_ensure_packages()
+
+
+# Now redirect stderr to suppress all warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = "4"
-# Suppress warnings at the source level
 os.environ["PYTHONWARNINGS"] = "ignore"
 sys.stderr = open(os.devnull, 'w')
 
-# Suppress all Python warnings
 import warnings as _warnings
 _warnings.filterwarnings("ignore")
 _warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -34,7 +98,6 @@ _warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.line
 _warnings.filterwarnings("ignore", category=RuntimeWarning, module="sklearn.utils.*")
 _warnings.simplefilter("ignore")
 
-# Suppress numpy floating-point warnings
 import numpy as np
 np.seterr(all='ignore')
 import numpy.core as _core
@@ -51,11 +114,10 @@ import argparse
 import gzip
 import json
 import platform
-import subprocess
-import sys
 import time
 import traceback
 import warnings
+import importlib.util
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -64,9 +126,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import importlib.util
 import joblib
 try:
     from tqdm import tqdm as _tqdm
