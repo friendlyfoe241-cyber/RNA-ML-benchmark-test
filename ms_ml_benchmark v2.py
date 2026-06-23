@@ -69,7 +69,10 @@ import pandas as pd
 import importlib.util
 import joblib
 try:
-    from tqdm import tqdm
+    from tqdm import tqdm as _tqdm
+    # Configure tqdm to use stdout so progress bar shows even when stderr is redirected
+    def tqdm(*args, **kwargs):
+        return _tqdm(*args, **kwargs, file=sys.stdout)
 except ImportError:
     def tqdm(iterable, *args, **kwargs):
         return iterable
