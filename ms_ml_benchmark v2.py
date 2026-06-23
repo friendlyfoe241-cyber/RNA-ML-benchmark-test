@@ -1064,14 +1064,14 @@ def run(cfg: Config) -> None:
     headers = list(display_df.columns)
     col_widths = [max(len(str(h)), display_df[h].astype(str).str.len().max()) for h in headers]
     
-    # Print colored headers
+    # Print colored headers (left-aligned)
     header_line = "  ".join(f"\033[91m{headers[i]:<{col_widths[i]}}\033[0m" for i in range(len(headers)))
     print("\n" + header_line)
     
-    # Print data rows with proper alignment
+    # Print data rows (all left-aligned)
     for _, row in display_df.iterrows():
         model_name = f"\033[93m{row['Model']:<{col_widths[0]}}\033[0m"  # 93=yellow for model name
-        values = "  ".join(f"{row.iloc[i]:>{col_widths[i]}}" for i in range(1, len(headers)))
+        values = "  ".join(f"{row.iloc[i]:<{col_widths[i]}}" for i in range(1, len(headers)))
         print(f"{model_name}  {values}")
     print("\n" + "\033[0;31m=\033[0m"*100)
     print(f"\nSaved all outputs to: {outdir.resolve()}")
