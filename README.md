@@ -6,7 +6,7 @@ A publication-style machine learning benchmarking framework for classifying Mult
 This project evaluates multiple machine learning algorithms on the publicly available GSE17048 cohort and introduces the **MS Diagnostic Score**, a clinically weighted composite evaluation metric designed to assess model utility beyond standard accuracy alone.
 
 
-# The Google docs link to the research paper is below: 
+# The Google docs link to the research paper: 
 https://docs.google.com/document/d/1nw-o4foh9bFQkOpzV15W3959ZzaMGiOm/edit?usp=sharing&ouid=104443089857599206364&rtpof=true&sd=true
 
 ---
