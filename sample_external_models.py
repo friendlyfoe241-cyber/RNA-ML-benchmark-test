@@ -11,14 +11,14 @@ EXTERNAL_MODELS = {
         LogisticRegression(max_iter=5000, class_weight="balanced", random_state=42),
         {
             "model__C": [0.01, 0.1, 1.0, 10.0],
-            "kbest__k": [50, 100, 200],
+            "kbest__k": [50, 100, 300],
         },
     ),
     "External Random Forest": (
         RandomForestClassifier(n_estimators=100, class_weight="balanced", random_state=42),
         {
             "model__n_estimators": [100, 200],
-            "model__max_depth": [None, 10, 20],
+            "model__max_depth": [None, 10, 90],
         },
     ),
 }

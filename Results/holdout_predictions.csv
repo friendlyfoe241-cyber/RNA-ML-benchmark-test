@@ -202,64 +202,6 @@ Neural Network,25,0,0,0.43528249985510997
 Neural Network,26,0,0,0.0010327563735503809
 Neural Network,27,0,0,0.0002460284384663997
 Neural Network,28,0,0,1.0850305035000225e-05
-External Logistic Regression,0,1,0,0.32969042977915114
-External Logistic Regression,1,1,1,0.9999993780566698
-External Logistic Regression,2,1,1,0.9945304971346313
-External Logistic Regression,3,1,0,0.12527384035592073
-External Logistic Regression,4,0,0,0.23702135796638243
-External Logistic Regression,5,1,1,0.9978632385826464
-External Logistic Regression,6,1,1,0.9508626346709891
-External Logistic Regression,7,1,1,0.9999699499485091
-External Logistic Regression,8,0,0,0.07398101388741714
-External Logistic Regression,9,1,1,0.9988085823590418
-External Logistic Regression,10,0,0,0.0027623788540331296
-External Logistic Regression,11,1,1,0.9993752098880895
-External Logistic Regression,12,1,1,0.999647916439871
-External Logistic Regression,13,0,0,0.0013057147985488604
-External Logistic Regression,14,1,1,0.981810178791207
-External Logistic Regression,15,1,1,0.9971011419564338
-External Logistic Regression,16,1,1,0.9673218467818976
-External Logistic Regression,17,1,1,0.5887993765089135
-External Logistic Regression,18,0,1,0.9835363631866172
-External Logistic Regression,19,1,1,0.999998608828877
-External Logistic Regression,20,1,1,0.9998499363363842
-External Logistic Regression,21,1,1,0.999998793909253
-External Logistic Regression,22,1,1,0.9892805707525681
-External Logistic Regression,23,1,1,0.989663362394571
-External Logistic Regression,24,1,1,0.9999511952715708
-External Logistic Regression,25,0,1,0.9425767709308316
-External Logistic Regression,26,0,0,0.000300842132855374
-External Logistic Regression,27,0,0,4.1212022655235345e-05
-External Logistic Regression,28,0,0,2.186057382417023e-08
-External Random Forest,0,1,1,0.63
-External Random Forest,1,1,1,0.88
-External Random Forest,2,1,1,0.54
-External Random Forest,3,1,1,0.52
-External Random Forest,4,0,1,0.51
-External Random Forest,5,1,1,0.68
-External Random Forest,6,1,1,0.64
-External Random Forest,7,1,1,0.52
-External Random Forest,8,0,1,0.56
-External Random Forest,9,1,1,0.67
-External Random Forest,10,0,0,0.24
-External Random Forest,11,1,1,0.8
-External Random Forest,12,1,1,0.6
-External Random Forest,13,0,0,0.49
-External Random Forest,14,1,1,0.57
-External Random Forest,15,1,1,0.73
-External Random Forest,16,1,1,0.52
-External Random Forest,17,1,1,0.68
-External Random Forest,18,0,1,0.52
-External Random Forest,19,1,1,0.87
-External Random Forest,20,1,1,0.6
-External Random Forest,21,1,1,0.79
-External Random Forest,22,1,1,0.81
-External Random Forest,23,1,1,0.85
-External Random Forest,24,1,1,0.76
-External Random Forest,25,0,1,0.63
-External Random Forest,26,0,0,0.49
-External Random Forest,27,0,0,0.26
-External Random Forest,28,0,0,0.43
 Stacking Ensemble,0,1,0,0.3973781018509149
 Stacking Ensemble,1,1,1,0.6734842263249462
 Stacking Ensemble,2,1,1,0.6295571476737326

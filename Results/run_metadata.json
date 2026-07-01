@@ -13,7 +13,7 @@
     "results_dir": "results_publication_grade",
     "positive_label_name": "MS",
     "negative_label_name": "HC",
-    "external_models": "sample_external_models.py",
+    "external_models": null,
     "install_deps": false,
     "requirements_file": "requirements.txt"
   },
